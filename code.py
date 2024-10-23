@@ -134,12 +134,95 @@ eigenface(X_App)
 
 En tirant aléatoirement une image de test, parmi les 32 personnes et les 6 postures faciales disponibles dans la base de données complète, complétez une fonction pour trouver l'individu (personne+posture) et la distance du proche voisin dans la base d'apprentissage qui est le plus proche de l'image de test (vous pouvez utiliser et adapter la fonction \texttt{kppv} que vous avez écrite lors du TP2).
 """
+def eigenface(X_App):
 
+  ComposantesPrincipales =[]
+
+  x_moyen = np.mean(X_App,axis = 0)
+
+  x_centred = X_App - x_moyen
+
+  matrix_cov1 = np.dot(x_centred,np.transpose(x_centred)) / x_centred.shape[0]
+
+
+  v_p1 , vec_p1 = np.linalg.eig(matrix_cov1)
+
+  vecsigma1 = np.dot(np.transpose(x_centred),vec_p1)
+
+  plt.figure(figsize=(10,10))
+
+  print(1)
+  compt=0
+  for i in range(0,vecsigma1.shape[1]):
+    im=np.reshape(vecsigma1[:,i],(400,300))
+    plt.subplot(4,4,compt+1)
+    compt=compt+1
+    plt.imshow(im,cmap='gray')
+
+  plt.show()
+
+  vecsigma1.sort()
+
+
+  for i in range(vecsigma1.shape[1]) :
+
+    ComposantesPrincipales.append(np.dot(X_App,vecsigma1[:,i]))
+
+  print(ComposantesPrincipales)
+
+  return ComposantesPrincipales
+
+
+
+eigenface(X_App)
 # à vous
 
 """## Reconstruction
 
 A partir de la question précédente, implémentez la reconstruction de la zone du masque  en remplaçant la zone correspondant au masque par la zone de l'image de la base d'apprentissage de visages entiers la plus proche dans l'espace défini par les eigenfaces masqués.
+
+def kppv(image,imagemask):
+
+
+
+    # Initialisation du vecteur d'etiquetage des images tests
+    Partition = np.zeros((16,1));
+
+    # Boucle sur les vecteurs test de l'ensemble de l'evaluation
+    for i in range(5):
+
+        #print('Image test n',i)
+
+        # Calcul des distances entre les vecteurs de test
+        # et les vecteurs d'apprentissage (voisins)
+
+        distance = euclidean_distances(imagemask[i].reshape((1,-1)),image)
+
+        # # On ne garde que les indices des K + proches voisins
+
+        kpp = np.argsort(distance[0])[0]
+
+        print(kpp)
+        print(i)
+
+        Na=X_Data[kpp]
+        Nt=X_DataMask[i]
+
+        ImExple1=np.reshape(Nt,(400,300))
+        plt.imshow(ImExple1,cmap = "gray")
+        plt.show()
+
+        ImExple2=np.reshape(Na,(400,300))
+        plt.imshow(ImExple2,cmap = "gray")
+        plt.show()
+
+
+
+    return Partition
+
+
+
+kppv(X_Data,X_DataMask)
 
 
 """
