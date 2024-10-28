@@ -89,47 +89,6 @@ Recognition» : https://www.mitpressjournals.org/doi/pdfplus/10.1162/jocn.1991.3
     calculer les valeurs propres non nulles de $\Sigma$.
 """
 
-def eigenface(X_App):
-
-  ComposantesPrincipales =[]
-
-  x_moyen = np.mean(X_App,axis = 0)
-
-  x_centred = X_App - x_moyen
-
-  matrix_cov1 = np.dot(x_centred,np.transpose(x_centred)) / x_centred.shape[0]
-
-
-  v_p1 , vec_p1 = np.linalg.eig(matrix_cov1)
-
-  vecsigma1 = np.dot(np.transpose(x_centred),vec_p1)
-
-  plt.figure(figsize=(10,10))
-
-  print(1)
-  compt=0
-  for i in range(0,vecsigma1.shape[1]):
-    im=np.reshape(vecsigma1[:,i],(400,300))
-    plt.subplot(4,4,compt+1)
-    compt=compt+1
-    plt.imshow(im,cmap='gray')
-
-  plt.show()
-
-  vecsigma1.sort()
-
-
-  for i in range(vecsigma1.shape[1]) :
-    # print(vecsigma1[:,i])
-    ComposantesPrincipales.append(np.dot(X_App,vecsigma1[:,i]))
-
-  print(ComposantesPrincipales)
-
-  return ComposantesPrincipales
-
-
-eigenface(X_App)
-
 """## Reconnaissance par kppv
 
 En tirant aléatoirement une image de test, parmi les 32 personnes et les 6 postures faciales disponibles dans la base de données complète, complétez une fonction pour trouver l'individu (personne+posture) et la distance du proche voisin dans la base d'apprentissage qui est le plus proche de l'image de test (vous pouvez utiliser et adapter la fonction \texttt{kppv} que vous avez écrite lors du TP2).
