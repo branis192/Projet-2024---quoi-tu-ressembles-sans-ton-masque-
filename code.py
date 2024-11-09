@@ -20,6 +20,7 @@ import sklearn
 import matplotlib.pyplot as plt
 from matplotlib import image
 from random import *
+from sklearn.metrics.pairwise import euclidean_distances
 
 """## Chargement des données
 
@@ -52,13 +53,26 @@ plt.title('Exemple de visage masqué')
 
 # Création de la base d'apprentissage : exemple à modifier
 X_App=X_DataMask[np.arange(0,48,3),:]
-
-
+X_test=X_Data[np.arange(20,48,3),:]  # ici rendre 20 a 0 pour avoir element de notre test
+X_test2=X_Data[np.arange(0,48,14),:]
+X_App2=X_DataMask[np.arange(0,48,15),:]
+# X_test2=X_Data[np.arange(0,48,3),:]
+# X_App2=X_DataMask[np.arange(0,48,6),:]
 # Affichage des visages masqués de la base d'apprentissage
 plt.figure(figsize=(10,10))
 compt=0
-for i in range(0,X_App.shape[0]):
-    im=np.reshape(X_App[i,:],(400,300))
+for i in range(0,X_App2.shape[0]):
+    im=np.reshape(X_App2[i,:],(400,300))
+    plt.subplot(4,4,compt+1)
+    compt=compt+1
+    plt.imshow(im,cmap='gray')
+
+plt.show()
+
+plt.figure(figsize=(10,10))
+compt=0
+for i in range(0,X_test2.shape[0]):
+    im=np.reshape(X_test2[i,:],(400,300))
     plt.subplot(4,4,compt+1)
     compt=compt+1
     plt.imshow(im,cmap='gray')
@@ -89,108 +103,162 @@ Recognition» : https://www.mitpressjournals.org/doi/pdfplus/10.1162/jocn.1991.3
     calculer les valeurs propres non nulles de $\Sigma$.
 """
 
+def eigenface(X_App):
+  # Center the data
+  X_mean = np.mean(X_App, axis=0)
+  X_centered = X_App - X_mean
+
+  # Compute the covariance matrix
+  covariance_matrix1 = np.dot(X_centered, X_centered.T) / X_centered.shape[0]
+
+  # Compute the eigenvalues and eigenvectors of the smaller covariance matrix  sigma 2
+  eigenvalues, eigenvectors_small = np.linalg.eig(covariance_matrix1)
+
+  # Transform the eigenvectors back to the original space
+  vectore2 = np.dot(X_centered.T, eigenvectors_small) #vector propre de matrice de cov 1 sigma 1
+
+  # Normalize the eigenvectors
+  vectore2 = vectore2 / np.linalg.norm(vectore2, axis=0)
+
+  #affichage images
+  plt.figure(figsize=(10, 10))
+  compt = 0
+  for i in range(vectore2.shape[1]):
+    im = np.reshape(vectore2[:, i], (400, 300))
+    plt.subplot(4, 4, compt + 1)
+    compt = compt + 1
+    plt.imshow(im, cmap='gray')
+  plt.show()
+
+  composante = np.dot(X_App, vectore2)   #composante principale (nombre d'images, nombre d'eigenfaces)
+ #pour chaque eigenface, le code calcule la projection de toutes les images X_App sur cette eigenface vectore2[:, i]. errer
+
+  return composante,vectore2
+
+eigenface(X_App)
+
 """## Reconnaissance par kppv
 
 En tirant aléatoirement une image de test, parmi les 32 personnes et les 6 postures faciales disponibles dans la base de données complète, complétez une fonction pour trouver l'individu (personne+posture) et la distance du proche voisin dans la base d'apprentissage qui est le plus proche de l'image de test (vous pouvez utiliser et adapter la fonction \texttt{kppv} que vous avez écrite lors du TP2).
 """
-def eigenface(X_App):
 
-  ComposantesPrincipales =[]
+def k_nearest_neighbor(query, data, eigenfaces, k=1):
+    """
+    Trouve l'image la plus proche de l'image de test dans la base d'apprentissage en utilisant k-plus proches voisins.
+    query : image de test vectorisée
+    data : base d'apprentissage vectorisée
+    eigenfaces : eigenfaces pour projeter les données
+    k : nombre de voisins proches (défaut à 1)
+    """
+    # Projection des images sur les eigenfaces (réduction de dimension)
+    projected_data = np.dot(data, eigenfaces)
+    projected_query = np.dot(query, eigenfaces)
 
-  x_moyen = np.mean(X_App,axis = 0)
+    # Calcul des distances euclidiennes entre l'image de test et les images de la base
+    distances = np.linalg.norm(projected_data - projected_query, axis=1)
 
-  x_centred = X_App - x_moyen
+    # Tri des distances et retour des indices des k plus proches voisins
+    nearest_neighbors = np.argsort(distances)[:k]
 
-  matrix_cov1 = np.dot(x_centred,np.transpose(x_centred)) / x_centred.shape[0]
+    return nearest_neighbors
 
+composante, vectore2 = eigenface(X_App2)
+query = X_App2[0] #image de test
+nearest_neighbor_index = k_nearest_neighbor(query, X_test2, vectore2, k=1)[0]
+closest_image = X_test2[nearest_neighbor_index]
 
-  v_p1 , vec_p1 = np.linalg.eig(matrix_cov1)
+# Affichage de l'image de test et de l'image la plus proche
+def display_images(test_img, closest_img, img_shape=(400, 300)):
+    test_img_reshaped = np.reshape(test_img, img_shape)
+    closest_img_reshaped = np.reshape(closest_img, img_shape)
 
-  vecsigma1 = np.dot(np.transpose(x_centred),vec_p1)
+    plt.figure(figsize=(10, 5))
 
-  plt.figure(figsize=(10,10))
+    # Affiche l'image de test
+    plt.subplot(1, 2, 1)
+    plt.imshow(test_img_reshaped, cmap='gray')
+    plt.title("Image de Test")
+    plt.axis('off')
 
-  print(1)
-  compt=0
-  for i in range(0,vecsigma1.shape[1]):
-    im=np.reshape(vecsigma1[:,i],(400,300))
-    plt.subplot(4,4,compt+1)
-    compt=compt+1
-    plt.imshow(im,cmap='gray')
+    # Affiche l'image la plus proche
+    plt.subplot(1, 2, 2)
+    plt.imshow(closest_img_reshaped, cmap='gray')
+    plt.title("Image la Plus Proche")
+    plt.axis('off')
 
-  plt.show()
+    plt.show()
 
-  vecsigma1.sort()
-
-
-  for i in range(vecsigma1.shape[1]) :
-
-    ComposantesPrincipales.append(np.dot(X_App,vecsigma1[:,i]))
-
-  print(ComposantesPrincipales)
-
-  return ComposantesPrincipales
-
-
-
-eigenface(X_App)
-# à vous
+# Affiche l'image de test et l'image la plus proche
+display_images(query, closest_image, img_shape=(400, 300))
 
 """## Reconstruction
 
 A partir de la question précédente, implémentez la reconstruction de la zone du masque  en remplaçant la zone correspondant au masque par la zone de l'image de la base d'apprentissage de visages entiers la plus proche dans l'espace défini par les eigenfaces masqués.
 
-def kppv(image,imagemask):
-
-
-
-    # Initialisation du vecteur d'etiquetage des images tests
-    Partition = np.zeros((16,1));
-
-    # Boucle sur les vecteurs test de l'ensemble de l'evaluation
-    for i in range(5):
-
-        #print('Image test n',i)
-
-        # Calcul des distances entre les vecteurs de test
-        # et les vecteurs d'apprentissage (voisins)
-
-        distance = euclidean_distances(imagemask[i].reshape((1,-1)),image)
-
-        # # On ne garde que les indices des K + proches voisins
-
-        kpp = np.argsort(distance[0])[0]
-
-        print(kpp)
-        print(i)
-
-        Na=X_Data[kpp]
-        Nt=X_DataMask[i]
-
-        ImExple1=np.reshape(Nt,(400,300))
-        plt.imshow(ImExple1,cmap = "gray")
-        plt.show()
-
-        ImExple2=np.reshape(Na,(400,300))
-        plt.imshow(ImExple2,cmap = "gray")
-        plt.show()
-
-
-
-    return Partition
-
-
-
-kppv(X_Data,X_DataMask)
-
 
 """
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 # Dimensions du masque
-ligne_min = 220
-ligne_max = 350
-colonne_min = 60
-colonne_max = 260
+ligne_min, ligne_max = 220, 350
+colonne_min, colonne_max = 60, 260
+img_shape = (400, 300)
+
+def create_mask(shape, ligne_min, ligne_max, colonne_min, colonne_max):
+    mask = np.zeros(shape, dtype=bool)
+    mask[ligne_min:ligne_max, colonne_min:colonne_max] = True
+    return mask
+
+# Génération du masque
+mask = create_mask(img_shape, ligne_min, ligne_max, colonne_min, colonne_max)
+
+def reconstruct_image(masked_image, unmasked_image, mask):
+    reconstructed_image = np.copy(masked_image)
+    reconstructed_image[mask] = unmasked_image[mask]
+    return reconstructed_image
+
+# Supposons que eigenface et k_nearest_neighbor sont déjà définis
+composante, vectore2 = eigenface(X_App)
+X_App_mean = np.mean(X_App, axis=0)
+
+# Sélection de l'image de test masquée et recherche du plus proche voisin
+query_masked = X_App[4] - X_App_mean  # Centrer l'image de test masquée
+nearest_neighbor_index = k_nearest_neighbor(query_masked, X_test2, vectore2, k=6)[0]               #changer ici X_test2 par X_test
+
+# Récupérer l'image non masquée correspondante dans X_test
+closest_unmasked_image = X_test2[nearest_neighbor_index]                                            #changer ici X_test2 par X_test
+
+# Reshape des images pour application du masque
+query_masked_reshaped = np.reshape(query_masked + X_App_mean, img_shape)
+closest_unmasked_image_reshaped = np.reshape(closest_unmasked_image, img_shape) #je stocke dans ce variable just la partie de mask correspond
+
+# Reconstruction de l'image de test en utilisant la zone du masque de l'image non masquée la plus proche
+reconstructed_image = reconstruct_image(query_masked_reshaped, closest_unmasked_image_reshaped, mask)
+
+def display_images(masked_img, reconstructed_img, original_unmasked_img):
+    plt.figure(figsize=(20, 5))
+
+    plt.subplot(1, 3, 1)
+    plt.imshow(masked_img, cmap='gray')
+    plt.title("Image de Test Masquée")
+    plt.axis('off')
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(reconstructed_img, cmap='gray')
+    plt.title("Image Reconstituée")
+    plt.axis('off')
+
+    plt.subplot(1, 3, 3)
+    plt.imshow(original_unmasked_img, cmap='gray')
+    plt.title("Image Originale Non Masquée")
+    plt.axis('off')
+
+    plt.show()
+
+# Affichage
+display_images(query_masked_reshaped, reconstructed_image, closest_unmasked_image_reshaped)
 
 """# Evaluation
 
@@ -202,5 +270,63 @@ En fonction de cette distribution, on peut définir une distance seuil à partir
 **Autre piste :** Affiner l'étude aussi lorsque la personne idenfiée correspond à l'image requête avec une autre distance spécifique pour une posture différente voire pour une émotion différente ? Plein de possiblités pour cette étude sur l'évaluation de la reconstruction.
 """
 
+import numpy as np
 
+def evaluate_face_recognition(X_train, y_train, X_test, y_test, vectore2, n_neighbors=1):
+    same_person_distances = []
+    different_person_distances = []
+
+    correct_matches = 0
+    total_tests = len(X_test)
+
+    for i, test_image in enumerate(X_test):
+        # Centrer l'image de test comme dans votre code initial
+        centered_test_image = test_image - np.mean(X_train, axis=0)
+
+        # Trouver le voisin le plus proche avec votre fonction `k_nearest_neighbor`
+        nearest_neighbor_index = k_nearest_neighbor(centered_test_image, X_train, vectore2, k=n_neighbors)[0]
+
+        # Calculer la distance entre l'image de test et son voisin le plus proche
+        nearest_distance = np.linalg.norm(centered_test_image - X_train[nearest_neighbor_index])
+
+        # Enregistrer les distances pour les mêmes personnes et pour les personnes différentes
+        if y_test[i] == y_train[nearest_neighbor_index]:
+            same_person_distances.append(nearest_distance)
+            correct_matches += 1
+        else:
+            different_person_distances.append(nearest_distance)
+
+    # Calcul des statistiques des distances
+    mean_same = np.mean(same_person_distances) if same_person_distances else 0
+    std_same = np.std(same_person_distances) if same_person_distances else 0
+    mean_diff = np.mean(different_person_distances) if different_person_distances else 0
+    std_diff = np.std(different_person_distances) if different_person_distances else 0
+
+    # Calcul du seuil : moyenne des mêmes + 2 écart-types, à ajuster si nécessaire
+    threshold = mean_same + 2 * std_same
+
+    # Calcul de la précision
+    accuracy = (correct_matches / total_tests) * 100
+
+    return {
+        'accuracy': accuracy,
+        'threshold': threshold,
+        'mean_same_person': mean_same,
+        'std_same_person': std_same,
+        'mean_different_person': mean_diff,
+        'std_different_person': std_diff
+    }
+
+# Appel de la fonction d’évaluation avec vos données
+labels_train = np.arange(len(X_test2))  # Étiquettes pour X_App
+labels_test = np.arange(len(X_App2))  # Étiquettes pour X_test
+
+# Résultats en utilisant votre fonction `k_nearest_neighbor`
+results = evaluate_face_recognition(X_test2, labels_train, X_App2, labels_test, vectore2, n_neighbors=6)
+
+# Affichage des résultats
+print(f"Précision: {results['accuracy']:.2f} %")
+print(f"Seuil de distance: {results['threshold']:.2f}")
+print(f"Distance moyenne (même personne): {results['mean_same_person']:.2f} ± {results['std_same_person']:.2f}")
+print(f"Distance moyenne (personnes différentes): {results['mean_different_person']:.2f} ± {results['std_different_person']:.2f}")
 
